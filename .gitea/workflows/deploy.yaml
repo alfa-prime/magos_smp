@@ -9,8 +9,8 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - run: echo "192.168.0.250	docker-hub.omnissiah-codex.internal" | sudo tee -a /etc/hosts
-#      - run: curl -k https://docker-hub.omnissiah-codex.internal/v2/
+      - run: echo "192.168.0.249 docker-hub.omnissiah-codex.internal" | sudo tee -a /etc/hosts
+      - run: curl -k https://docker-hub.omnissiah-codex.internal/v2/
       - run: openssl s_client -showcerts -connect docker-hub.omnissiah-codex.internal:443 < /dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > cert.crt
       - run: cp cert.crt /usr/local/share/ca-certificates/
       - run: mkdir -p /etc/docker/certs.d/docker-hub.omnissiah-codex.internal
