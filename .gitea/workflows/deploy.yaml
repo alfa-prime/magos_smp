@@ -1,0 +1,31 @@
+name: Gitea Actions Demo
+run-name: ${{ gitea.actor }} is testing out Gitea Actions 🚀
+on: [push]
+
+jobs:
+  Explore-Gitea-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - run: echo "192.168.0.250	docker-hub.omnissiah-codex.internal" | sudo tee -a /etc/hosts
+      - run: curl -k https://docker-hub.omnissiah-codex.internal/v2/
+      - run: openssl s_client -showcerts -connect docker-hub.omnissiah-codex.internal:443 < /dev/null | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > cert.crt
+      - run: cp cert.crt /usr/local/share/ca-certificates/
+      - run: mkdir -p /etc/docker/certs.d/docker-hub.omnissiah-codex.internal
+      - run: sudo cp cert.crt /etc/docker/certs.d/docker-hub.omnissiah-codex.internal/docker_registry.crt
+      - run: sudo update-ca-certificates
+
+      - run: echo "CONTAINER_NAME=docker-hub.omnissiah-codex.internal/magos_smp" >> $GITHUB_ENV
+      - run: echo ${{ env.CONTAINER_NAME }}
+
+      - run: echo "VERSION_TAG=release-$(date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV  
+      - run: echo ${{ env.CONTAINER_NAME }} 
+
+      - run: docker build -t ${{ env.CONTAINER_NAME }}:${{env.VERSION_TAG}} -f Dockerfile.prod .
+      - run: docker tag ${{ env.CONTAINER_NAME }}:${{env.VERSION_TAG}} ${{ env.CONTAINER_NAME }}:latest 
+      - run: docker images -a
+      - run: docker push ${{ env.CONTAINER_NAME }}:latest
+      - run: docker push ${{ env.CONTAINER_NAME }}:${{env.VERSION_TAG}}
+

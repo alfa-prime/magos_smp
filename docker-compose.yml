@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: . # Собирать из текущей директории
+      dockerfile: Dockerfile
+    container_name: ${DEV_CONTAINER_NAME} # Имя контейнера приложения
+    env_file:
+      - .env
+    ports:
+      - "${DEV_PORT}:8000"
+    volumes:
+      # Монтируем код приложения для live reload (режим read-write по умолчанию)
+      - ./app:/code/app
+      - ./logs:/code/logs
+    restart: unless-stopped
+    # 2. ПОДКЛЮЧАЕМ СЕРВИС К ОБЩЕЙ СЕТИ
+    networks:
+      - default # Оставляем default для возможных будущих сервисов в этом проекте
+#      - monitor-net
+
+  # 3. ОБЪЯВЛЯЕМ, ЧТО СЕТЬ 'monitor-net' ЯВЛЯЕТСЯ ВНЕШНЕЙ
+networks:
+#  monitor-net:
+#    external: true
+  default:
+    driver: bridge
