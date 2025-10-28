@@ -38,4 +38,5 @@ app.add_middleware(
     allow_headers=["*"],  # Разрешить все заголовки
 )
 
+
 app.include_router(api_router)
