@@ -42,3 +42,4 @@ handbooks
 *.log
 *.DS_Store
 materials
+ci_cd
