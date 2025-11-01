@@ -174,7 +174,7 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     if (!filterInput) throw new Error(`Поле для фильтрации в колонке "${column}" не найдено.`);
 
     let firstRow = null;
-    const maxRetries = 5;
+    const maxRetries = 3;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`[pageInjector] Попытка ${attempt}/${maxRetries} найти "${value}" в колонке "${column}"`);
@@ -209,8 +209,8 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     const checker = firstRow.querySelector(".x-grid-cell-row-checker");
     if (!checker) throw new Error("Не удалось найти ячейку с чекбоксом (.x-grid-cell-row-checker) в найденной строке.");
 
-    for (let attempt = 1; attempt <= 5; attempt++) {
-        console.log(`[pageInjector] Попытка ${attempt}/5 выбрать строку (один мощный клик по чекбоксу)...`);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        console.log(`[pageInjector] Попытка ${attempt}/3 выбрать строку (один мощный клик по чекбоксу)...`);
 
         dispatchMouseEvents(checker, iframeWindow);
 
@@ -220,7 +220,7 @@ export async function injectionTargetFunction(enrichedDataForForm) {
             break;
         } catch (e) {
             console.warn(`[pageInjector] Не удалось подтвердить выбор строки на попытке ${attempt}.`);
-            if (attempt === 10) throw e;
+            if (attempt === 3) throw e;
             await new Promise(resolve => setTimeout(resolve, 500));
         }
     }
