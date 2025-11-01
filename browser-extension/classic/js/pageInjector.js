@@ -348,6 +348,20 @@ export async function injectionTargetFunction(enrichedDataForForm) {
       chrome.runtime.sendMessage({ action: "injectionError", error: `Произошла ошибка: ${executionError.message || String(executionError)}` });
       chrome.runtime.sendMessage({ action: "formFillError", error: executionError.message || String(executionError) });
     } else {
+      try {
+        console.log('[pageInjector] Заполнение формы завершено. Возвращаемся на вкладку "Сведения о госпитализации".');
+        const finalTabs = Array.from(doc.querySelectorAll('span.x-tab-inner'));
+        const finalTargetTab = finalTabs.find(tab => tab.textContent.trim() === 'Сведения о госпитализации');
+
+        if (finalTargetTab) {
+          dispatchMouseEvents(finalTargetTab, iframe.contentWindow);
+        } else {
+          console.warn('[pageInjector] Не удалось найти вкладку "Сведения о госпитализации" для возврата.');
+        }
+      } catch (e) {
+        console.error('[pageInjector] Произошла ошибка при возврате на исходную вкладку:', e);
+      }
+
       const patientName = dataMapToInsert.patientFIO || dataMapToInsert["input[name='CardNumber']"] || "пациента";
       chrome.runtime.sendMessage({ action: "formFillComplete", patientName: patientName });
 
