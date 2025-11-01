@@ -1,5 +1,6 @@
-// browser-extension/js/background.js
 import { injectionTargetFunction } from './pageInjector.js';
+
+const isOffscreenApiSupported = typeof chrome.offscreen !== 'undefined';
 
 const TITLE_ENABLED = 'ЕВМИАС -> ОМС: Заполнить форму';
 const TITLE_DISABLED = 'ЕВМИАС -> ОМС (неактивно)';
@@ -16,19 +17,14 @@ async function setActionState(tabId, enabled) {
 }
 
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    // Этот слушатель остается для обновления иконки
     if (message.action === 'updateIcon' && sender.tab) {
         await setActionState(sender.tab.id, message.found);
         return;
     }
 
-    // НОВЫЙ СЛУШАТЕЛЬ для фонового заполнения формы
     if (message.action === 'startFormFill') {
-        // === ИЗМЕНЕНИЕ ЗДЕСЬ ===
-        // Надежно получаем текущую активную вкладку. Не используем `sender.tab`.
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-        // Проверяем, что вкладка нашлась
         if (!tab || !tab.id) {
             console.error('[Background] Не удалось найти активную вкладку для инъекции скрипта.');
             return;
@@ -38,7 +34,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
         try {
             await chrome.scripting.executeScript({
-                target: { tabId: tab.id }, // Используем ID найденной вкладки
+                target: { tabId: tab.id },
                 func: injectionTargetFunction,
                 args: [message.data]
             });
@@ -49,7 +45,6 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return;
     }
 
-    // Этот слушатель остается для отображения доп. данных (операции/диагнозы)
     if (message.action === 'showFinalResultInPage') {
         if (sender.tab && sender.tab.id) {
             try {
@@ -64,22 +59,18 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return;
     }
 
-    // Логируем финальные сообщения в консоль, так как уведомлений у нас нет
     if (message.action === 'injectionError' || message.action === 'formFillError') {
         console.error(`[Background] Ошибка от pageInjector: ${message.error}`);
         return;
     }
 
-
     if (message.action === 'formFillError' || message.action === 'formFillComplete') {
-        // По-прежнему останавливаем аудио, это важно
         if (isOffscreenApiSupported && await chrome.offscreen.hasDocument()) {
             await sendActionToOffscreen('stop_audio');
             await chrome.offscreen.closeDocument();
             console.log('[Background] Воспроизведение тишины остановлено, документ закрыт.');
         }
 
-        // Вместо уведомлений просто выводим информацию в консоль для отладки
         if (message.action === 'formFillError') {
             console.error(`[Background] Заполнение формы завершилось с ошибкой: ${message.error}`);
         } else { // formFillComplete

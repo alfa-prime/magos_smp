@@ -6,6 +6,46 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
   const REFERENCE_FIELD_TIMEOUT = 60000;
 
+  // --- НОВЫЙ БЛОК: ФУНКЦИИ ДЛЯ ОВЕРЛЕЯ ---
+  function showOverlay(doc, text = "Идет заполнение формы. <br> Пожалуйста, подождите.") {
+    const oldOverlay = doc.getElementById('injection-overlay');
+    if (oldOverlay) {
+      oldOverlay.remove();
+    }
+
+    const overlay = doc.createElement('div');
+    overlay.id = 'injection-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+    overlay.style.color = 'white';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '999999';
+    overlay.style.fontSize = '24px';
+    overlay.style.fontFamily = 'Arial, sans-serif';
+
+    overlay.innerHTML = `
+      <div style="text-align: center; padding: 20px; background: #2c3e50; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+        <p>${text}</p>
+      </div>
+    `;
+
+    doc.body.appendChild(overlay);
+  }
+
+  function hideOverlay(doc) {
+    const overlay = doc.getElementById('injection-overlay');
+    if (overlay) {
+      overlay.remove();
+    }
+  }
+  // --- КОНЕЦ НОВОГО БЛОКА ---
+
   function dispatchMouseEvents(element, view) {
     const eventParams = {
       bubbles: true,
@@ -255,6 +295,8 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     return;
   }
 
+  showOverlay(doc);
+
   let executionError = null;
   try {
     const fillTasks = [
@@ -320,7 +362,6 @@ export async function injectionTargetFunction(enrichedDataForForm) {
         }
       }
 
-      // --- Ключевой блок с переключением вкладки ---
       if (task.name === 'HospitalizationInfoDiagnosisMainDisease') {
           console.log('[pageInjector] Диагноз МКБ заполнен. Переключаемся на вкладку "Сведения о случае..."');
 
@@ -344,10 +385,13 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     console.error("Критическая ошибка во время выполнения скрипта:", error);
     executionError = error;
   } finally {
+    hideOverlay(doc);
+
     if (executionError) {
       chrome.runtime.sendMessage({ action: "injectionError", error: `Произошла ошибка: ${executionError.message || String(executionError)}` });
       chrome.runtime.sendMessage({ action: "formFillError", error: executionError.message || String(executionError) });
     } else {
+
       try {
         console.log('[pageInjector] Заполнение формы завершено. Возвращаемся на вкладку "Сведения о госпитализации".');
         const finalTabs = Array.from(doc.querySelectorAll('span.x-tab-inner'));
