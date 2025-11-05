@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Поиск пациента [ВМП]</title>
+        <link rel="stylesheet" href="css/style.css" />
+        <script type="module" src="js/main.js"></script>
+    </head>
+    <body>
+        <!-- Блок поиска (основной) -->
+        <div id="search-block">
+            <h3>ФИО</h3>
+            <input id="lastname" placeholder="Фамилия" />
+            <h3>Период (исход из отделения)</h3>
+            <input id="startDate" type="date" placeholder="Дата начала" />
+            <input id="endDate" type="date" placeholder="Дата окончания" />
+            <button id="searchBtn">Искать</button>
+            <ul id="results"></ul>
+        </div>
+
+        <!-- Сообщение: ошибки, уведомления -->
+        <div
+            id="message"
+            class="message"
+            style="display: none; text-align: center; margin-top: 10px"
+        ></div>
+
+        <!-- Прелоадер: анимация загрузки -->
+        <div
+            id="loading"
+            style="display: none; text-align: center; margin: 10px 0"
+        >
+            <div class="spinner"></div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "[CМП] ЕВМИАС -> ОМС {ultimate}",
+  "version": "1.0",
+  "description": "Находит данные по ФИО и вставляет их в форму.",
+  "permissions": ["scripting", "activeTab", "tabs", "windows", "storage"],
+  "host_permissions": [
+    "http://0.0.0.0:8000/*",
+    "http://192.168.0.250:7606/",
+    "https://gisoms.ffoms.gov.ru/*"
+  ],
+  "background": {
+    "service_worker": "js/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "[CМП] ЕВМИАС -> ОМС {ultimate}",
+    "default_popup": "index.html",
+    "default_state": "disabled",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "32": "images/icon32.png",
+      "48": "images/icon48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://gisoms.ffoms.gov.ru/*"],
+      "js": ["js/content.js"],
+      "css": ["css/style.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["js/*.js", "css/*.css", "final-view.html", "images/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
