@@ -1,88 +1,69 @@
+// browser-extension/js/pageInjector.js
+
 export async function injectionTargetFunction(enrichedDataForForm) {
   const dataMapToInsert = enrichedDataForForm;
   let allElementsFound = true;
 
-  const REFERENCE_FIELD_TIMEOUT = 30000;
+  // --- БЛОК НАСТРОЙКИ СКОРОСТИ (ТЮНИНГ) ---
+  const TUNING = {
+    // Общий максимальный таймаут для самых долгих операций
+    REFERENCE_FIELD_TIMEOUT: 50000,
+    // Как часто проверять состояние в функциях waitFor... (меньше = быстрее, но больше нагрузка)
+    POLLING_INTERVAL: 150,
+    // Пауза после переключения вкладки, чтобы дать ей прорисоваться
+    TAB_SWITCH_DELAY: 250,
+    // Пауза после отправки значения в фильтр, чтобы дать гриду среагировать
+    FILTER_REACTION_DELAY: 250,
+    // Пауза между повторными попытками при полной неудаче задачи
+    TASK_RETRY_DELAY: 1000,
+    // Пауза между повторными кликами при выборе строки
+    ROW_SELECT_RETRY_DELAY: 300,
+  };
+  // --- КОНЕЦ БЛОКА НАСТРОЙКИ ---
 
-  // --- НОВЫЙ БЛОК: ФУНКЦИИ ДЛЯ ОВЕРЛЕЯ ---
   function showOverlay(doc, text = "Идет заполнение формы. <br> Пожалуйста, подождите.") {
     const oldOverlay = doc.getElementById('injection-overlay');
-    if (oldOverlay) {
-      oldOverlay.remove();
-    }
-
+    if (oldOverlay) oldOverlay.remove();
     const overlay = doc.createElement('div');
     overlay.id = 'injection-overlay';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
-    overlay.style.color = 'white';
-    overlay.style.display = 'flex';
-    overlay.style.justifyContent = 'center';
-    overlay.style.alignItems = 'center';
-    overlay.style.zIndex = '999999';
-    overlay.style.fontSize = '24px';
-    overlay.style.fontFamily = 'Arial, sans-serif';
-
-    overlay.innerHTML = `
-      <div style="text-align: center; padding: 40px; background: #2c3e50; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
-        <p>${text}</p>
-      </div>
-    `;
-
+    Object.assign(overlay.style, {
+      position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.6)', color: 'white', display: 'flex',
+      justifyContent: 'center', alignItems: 'center', zIndex: '999999',
+      fontSize: '24px', fontFamily: 'Arial, sans-serif'
+    });
+    overlay.innerHTML = `<div style="text-align: center; padding: 40px; background: #2c3e50; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);"><p>${text}</p></div>`;
     doc.body.appendChild(overlay);
   }
 
   function hideOverlay(doc) {
     const overlay = doc.getElementById('injection-overlay');
-    if (overlay) {
-      overlay.remove();
-    }
+    if (overlay) overlay.remove();
   }
 
   function dispatchMouseEvents(element, view) {
     const eventParams = {
-      bubbles: true,
-      cancelable: true,
-      view: view,
-      detail: 1,
-      screenX: 0,
-      screenY: 0,
-      clientX: 0,
-      clientY: 0,
-      ctrlKey: false,
-      altKey: false,
-      shiftKey: false,
-      metaKey: false,
-      button: 0,
-      relatedTarget: null
+      bubbles: true, cancelable: true, view: view, detail: 1, screenX: 0, screenY: 0,
+      clientX: 0, clientY: 0, ctrlKey: false, altKey: false, shiftKey: false,
+      metaKey: false, button: 0, relatedTarget: null
     };
-    element.dispatchEvent(new MouseEvent('pointerdown', eventParams));
-    element.dispatchEvent(new MouseEvent('mousedown', eventParams));
-    element.dispatchEvent(new MouseEvent('pointerup', eventParams));
-    element.dispatchEvent(new MouseEvent('mouseup', eventParams));
-    element.dispatchEvent(new MouseEvent('click', eventParams));
+    ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(type => {
+      element.dispatchEvent(new MouseEvent(type, eventParams));
+    });
   }
 
-  function waitForRowSelected(rowElement, selectedClass = 'x-grid-row-selected', timeout = 35000) {
+  function waitForRowSelected(rowElement, selectedClass = 'x-grid-row-selected', timeout = 5000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       (function check() {
-        if (rowElement.classList.contains(selectedClass)) {
-          return resolve(true);
-        }
-        if (Date.now() - start > timeout) {
-          return reject(new Error(`Таймаут ожидания выбора строки (класс ${selectedClass} не появился).`));
-        }
-        setTimeout(check, 1000);
+        if (rowElement.classList.contains(selectedClass)) return resolve(true);
+        if (Date.now() - start > timeout) return reject(new Error(`Таймаут ожидания выбора строки (класс ${selectedClass} не появился).`));
+        setTimeout(check, TUNING.POLLING_INTERVAL);
       })();
     });
   }
 
-  function waitForElement(doc, selector, timeout = 35000) {
+  function waitForElement(doc, selector, timeout = 20000) {
     return new Promise((resolve) => {
       const start = Date.now();
       (function check() {
@@ -93,50 +74,46 @@ export async function injectionTargetFunction(enrichedDataForForm) {
           allElementsFound = false;
           resolve(null);
         }
-        setTimeout(check, 1000);
+        setTimeout(check, TUNING.POLLING_INTERVAL);
       })();
     });
   }
 
-  function waitForElementEnabled(doc, selector, timeout = 35000) {
+  function waitForElementEnabled(doc, selector, timeout = 20000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       (function check() {
         const el = doc.querySelector(selector);
-        if (el && !el.disabled) {
-          return resolve(el);
-        }
+        if (el && !el.disabled) return resolve(el);
         if (Date.now() - start > timeout) {
           const reason = el ? "не стал активным" : "не был найден";
           return reject(new Error(`Таймаут ожидания: элемент ${selector} ${reason}.`));
         }
-        setTimeout(check, 1200);
+        setTimeout(check, TUNING.POLLING_INTERVAL);
       })();
     });
   }
 
-  function waitForLoadMaskGone(doc, timeout = 10000) {
+  function waitForLoadMaskGone(doc, timeout = 15000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       (function check() {
         const mask = doc.querySelector(".x-mask-msg");
         if (!mask || getComputedStyle(mask).display === "none") return resolve();
         if (Date.now() - start > timeout) return reject(new Error("Таймаут ожидания исчезновения маски загрузки."));
-        setTimeout(check, 1000);
+        setTimeout(check, TUNING.POLLING_INTERVAL);
       })();
     });
   }
 
-  function waitForGridRowsSettled(doc, timeout = 50000, stableDelay = 1500) {
+  function waitForGridRowsSettled(doc, timeout = 30000, stableDelay = 1000) {
     return new Promise((resolve, reject) => {
       const gridView = doc.querySelector('.x-grid-view');
       if (!gridView) return reject(new Error("Не удалось найти контейнер грида (.x-grid-view)."));
-
       let inactivityTimer, hardTimeout;
       const cleanup = () => { clearTimeout(inactivityTimer); clearTimeout(hardTimeout); observer.disconnect(); };
       const onStable = () => { cleanup(); resolve(gridView.querySelectorAll('tr.x-grid-row').length); };
       const resetTimer = () => { clearTimeout(inactivityTimer); inactivityTimer = setTimeout(onStable, stableDelay); };
-
       const observer = new MutationObserver(resetTimer);
       hardTimeout = setTimeout(() => { cleanup(); reject(new Error(`Жесткий таймаут (${timeout}ms) ожидания стабилизации грида.`)); }, timeout);
       observer.observe(gridView, { childList: true, subtree: true });
@@ -144,14 +121,14 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     });
   }
 
-  function waitForReferenceWindow(doc, isOpen, timeout = 15000) {
+  function waitForReferenceWindow(doc, isOpen, timeout = 10000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       (function check() {
         const modal = [...doc.querySelectorAll(".x-window")].find(el => el.offsetParent !== null && el.innerText.includes("Выбор элемента"));
         if (!!modal === isOpen) return resolve(modal);
         if (Date.now() - start > timeout) return reject(new Error(`Таймаут ожидания ${isOpen ? "открытия" : "закрытия"} окна справочника.`));
-        setTimeout(check, 1200);
+        setTimeout(check, TUNING.POLLING_INTERVAL);
       })();
     });
   }
@@ -179,29 +156,26 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     if (!input) return;
     const trigger = input.closest(".x-form-item-body")?.querySelector(".x-form-trigger");
     if (!trigger) throw new Error(`Триггер для выпадающего списка ${fieldSelector} не найден.`);
-
     dispatchMouseEvents(trigger, iframeWindow);
-
     const dropdownList = await waitForElement(doc, ".x-boundlist:not(.x-boundlist-hidden)", 5000);
     await waitForElement(dropdownList, ".x-boundlist-item", 2000);
     const options = Array.from(dropdownList.querySelectorAll(".x-boundlist-item"));
     const targetOption = options.find(opt => opt.textContent.trim() === value);
     if (!targetOption) { doc.body.click(); throw new Error(`Опция "${value}" не найдена в выпадающем списке.`); }
-
     dispatchMouseEvents(targetOption, iframeWindow);
     await new Promise(resolve => setTimeout(resolve, 200));
   }
 
-async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, column, value }) {
+  async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, column, value }) {
     const input = await waitForElement(doc, fieldSelector);
     if (!input) return;
 
     input.focus();
     dispatchMouseEvents(input, iframeWindow);
 
-    const referenceWindow = await waitForReferenceWindow(doc, true, REFERENCE_FIELD_TIMEOUT);
-    await waitForLoadMaskGone(doc, REFERENCE_FIELD_TIMEOUT);
-    await waitForGridRowsSettled(doc, REFERENCE_FIELD_TIMEOUT);
+    const referenceWindow = await waitForReferenceWindow(doc, true, TUNING.REFERENCE_FIELD_TIMEOUT);
+    await waitForLoadMaskGone(doc, TUNING.REFERENCE_FIELD_TIMEOUT);
+    await waitForGridRowsSettled(doc, TUNING.REFERENCE_FIELD_TIMEOUT);
 
     const headerEl = Array.from(referenceWindow.querySelectorAll(".x-column-header .x-column-header-text"))
       .find(el => el.textContent.trim() === column.trim());
@@ -215,7 +189,6 @@ async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, colu
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`[pageInjector] Попытка ${attempt}/${maxRetries} найти "${value}" в колонке "${column}"`);
-
       filterInput.focus();
       filterInput.value = '';
       filterInput.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
@@ -224,46 +197,32 @@ async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, colu
       filterInput.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
       filterInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
       filterInput.blur();
-
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, TUNING.FILTER_REACTION_DELAY));
       filterInput.blur();
-
-      await waitForLoadMaskGone(doc, REFERENCE_FIELD_TIMEOUT);
-      await waitForGridRowsSettled(doc, REFERENCE_FIELD_TIMEOUT);
-
+      await waitForLoadMaskGone(doc, TUNING.REFERENCE_FIELD_TIMEOUT);
+      await waitForGridRowsSettled(doc, TUNING.REFERENCE_FIELD_TIMEOUT);
       firstRow = referenceWindow.querySelector("tr.x-grid-row");
-
       if (firstRow && firstRow.innerText.includes(value)) {
         console.log(`[pageInjector] Запись найдена и верифицирована на попытке ${attempt}.`);
         break;
       } else {
-        firstRow = null; // Сбрасываем, если нашли, но верификация не прошла
+        firstRow = null;
       }
-
       if (attempt < maxRetries) {
         console.warn(`[pageInjector] Запись не найдена или не прошла верификацию, ждем 1 секунду и пробуем снова...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    if (!firstRow) {
-      throw new Error(`Запись со значением "${value}" в колонке "${column}" не найдена после ${maxRetries} попыток.`);
-    }
+    if (!firstRow) throw new Error(`Запись со значением "${value}" в колонке "${column}" не найдена после ${maxRetries} попыток.`);
 
     const checker = firstRow.querySelector(".x-grid-cell-row-checker");
     if (!checker) throw new Error("Не удалось найти ячейку с чекбоксом (.x-grid-cell-row-checker) в найденной строке.");
 
-    // --- НОВАЯ УПРОЩЕННАЯ ЛОГИКА ВЫБОРА ---
     console.log("[pageInjector] Выполняем двойной клик (dblclick) для выбора и закрытия...");
-
-    // Отправляем только dblclick, так как он делает все сам
     checker.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, view: iframeWindow }));
-
-    // Ждем, пока окно справочника не закроется. Это наш главный индикатор успеха.
     await waitForReferenceWindow(doc, false, 5000);
-
     console.log("[pageInjector] Окно справочника успешно закрыто.");
-    // Больше ничего делать не нужно!
   }
 
   console.log("[PAGE INJECTOR] Вставка данных:", dataMapToInsert);
@@ -350,7 +309,7 @@ async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, colu
           if (attempt === maxRetries) {
             throw new Error(`Не удалось заполнить поле ${task.name} после ${maxRetries} попыток. Последняя ошибка: ${error.message}`);
           }
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, TUNING.TASK_RETRY_DELAY));
         }
       }
 
@@ -362,7 +321,7 @@ async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, colu
 
           if (targetTab) {
             dispatchMouseEvents(targetTab, iframe.contentWindow);
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, TUNING.TAB_SWITCH_DELAY));
 
             console.log('[pageInjector] Ожидаем, пока поле "Результат" станет активным...');
             await waitForElementEnabled(doc, "input[name='ResultV009']", 15000);
