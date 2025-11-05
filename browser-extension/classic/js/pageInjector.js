@@ -1,10 +1,8 @@
-// browser-extension/js/pageInjector.js
-
 export async function injectionTargetFunction(enrichedDataForForm) {
   const dataMapToInsert = enrichedDataForForm;
   let allElementsFound = true;
 
-  const REFERENCE_FIELD_TIMEOUT = 60000;
+  const REFERENCE_FIELD_TIMEOUT = 30000;
 
   // --- НОВЫЙ БЛОК: ФУНКЦИИ ДЛЯ ОВЕРЛЕЯ ---
   function showOverlay(doc, text = "Идет заполнение формы. <br> Пожалуйста, подождите.") {
@@ -44,7 +42,6 @@ export async function injectionTargetFunction(enrichedDataForForm) {
       overlay.remove();
     }
   }
-  // --- КОНЕЦ НОВОГО БЛОКА ---
 
   function dispatchMouseEvents(element, view) {
     const eventParams = {
