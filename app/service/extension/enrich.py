@@ -117,14 +117,13 @@ async def enrich_data(
         medical_care_profile = '20'
 
     # меняем профиль медицинской помощи на 'Колопроктология' код: 14
-    # при диагнозах K60.x - K64.x && D12.x
-    if re.compile(r"^K6[0-4]\.\d$").match(diag_code) or re.compile(r"^D12\.\d$").match(diag_code):
+    # при диагнозах K60.x - K64.x && D12.x && L05.x
+    pattern = re.compile(r"^(K6[0-4]\.\d|D12\.\d|L05\.\d)$")
+    if pattern.match(diag_code):
         medical_care_profile = '14'
-
 
     card_number = started_data.get("EvnPS_NumCard", "").split(" ")[0]
     treatment_outcome_code = movement_data.get("LeaveType_Code")
-
 
     disease_type_code = await get_disease_type_code(disease_data)
 
