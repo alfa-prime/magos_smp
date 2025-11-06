@@ -12,6 +12,22 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     TASK_RETRY_DELAY: 1000,
   };
 
+  const FIELD_NAMES_MAP = {
+    'ReferralHospitalizationMedIndications': 'Показания для госпитализации',
+    'ReferralHospitalizationSendingDepartment': 'Направившая МО',
+    'HospitalizationInfoAddressDepartment': 'Адрес подразделения',
+    'VidMpV008': 'Вид медицинской помощи',
+    'HospitalizationInfoV006': 'Условия оказания МП',
+    'HospitalizationInfoV014': 'Форма оказания МП',
+    'HospitalizationInfoSpecializedMedicalProfile': 'Профиль МП',
+    'HospitalizationInfoSubdivision': 'Структурное подразделение',
+    'HospitalizationInfoV020': 'Профиль койки',
+    'HospitalizationInfoDiagnosisMainDisease': 'Диагноз основного заболевания',
+    'HospitalizationInfoC_ZABV027': 'Характер основного заболевания',
+    'ResultV009': 'Результат лечения',
+    'IshodV012': 'Исход заболевания',
+  };
+
   function showOverlay(doc, text = "Идет заполнение формы. <br> Пожалуйста, подождите...") {
     const oldOverlay = doc.getElementById('injection-overlay');
     if (oldOverlay) oldOverlay.remove();
@@ -311,7 +327,14 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     hideOverlay(doc);
 
     if (executionError) {
-      const errorMessage = `Автоматическое заполнение формы не удалось.\n\nПричина: ${executionError.message}\n\nПожалуйста, перезагрузите страницу (Ctrl+R или Cmd+R) и попробуйте еще раз.`;
+      // Пытаемся извлечь имя поля из сообщения об ошибке
+      const match = executionError.message.match(/поле (\w+)/);
+      let fieldName = match ? match[1] : 'неизвестное поле';
+
+      // "Переводим" имя поля, если оно есть в словаре
+      const humanFieldName = FIELD_NAMES_MAP[fieldName] || fieldName;
+      const problemDescription = humanFieldName ? `Проблема с полем: "${humanFieldName}"` : `Причина: ${executionError.message}`;
+      const errorMessage = `Автоматическое заполнение формы не удалось.\n\n${problemDescription}\n\nПожалуйста, перезагрузите страницу (Ctrl+Shift+R)\nи попробуйте еще раз.`;
       alert(errorMessage);
 
       chrome.runtime.sendMessage({ action: "injectionError", error: `Произошла ошибка: ${executionError.message || String(executionError)}` });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "[CМП] ЕВМИАС -> ОМС {ultimate}",
-  "version": "1.0",
+  "version": "3.1",
   "description": "Находит данные по ФИО и вставляет их в форму.",
   "permissions": ["scripting", "activeTab", "tabs", "windows", "storage"],
   "host_permissions": [
