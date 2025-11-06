@@ -4,24 +4,15 @@ export async function injectionTargetFunction(enrichedDataForForm) {
   const dataMapToInsert = enrichedDataForForm;
   let allElementsFound = true;
 
-  // --- БЛОК НАСТРОЙКИ СКОРОСТИ (ТЮНИНГ) ---
   const TUNING = {
-    // Общий максимальный таймаут для самых долгих операций
     REFERENCE_FIELD_TIMEOUT: 50000,
-    // Как часто проверять состояние в функциях waitFor... (меньше = быстрее, но больше нагрузка)
     POLLING_INTERVAL: 150,
-    // Пауза после переключения вкладки, чтобы дать ей прорисоваться
     TAB_SWITCH_DELAY: 250,
-    // Пауза после отправки значения в фильтр, чтобы дать гриду среагировать
     FILTER_REACTION_DELAY: 250,
-    // Пауза между повторными попытками при полной неудаче задачи
     TASK_RETRY_DELAY: 1000,
-    // Пауза между повторными кликами при выборе строки
-    ROW_SELECT_RETRY_DELAY: 300,
   };
-  // --- КОНЕЦ БЛОКА НАСТРОЙКИ ---
 
-  function showOverlay(doc, text = "Идет заполнение формы. <br> Пожалуйста, подождите.") {
+  function showOverlay(doc, text = "Идет заполнение формы. <br> Пожалуйста, подождите...") {
     const oldOverlay = doc.getElementById('injection-overlay');
     if (oldOverlay) oldOverlay.remove();
     const overlay = doc.createElement('div');
@@ -52,27 +43,14 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     });
   }
 
-  function waitForRowSelected(rowElement, selectedClass = 'x-grid-row-selected', timeout = 5000) {
-    return new Promise((resolve, reject) => {
-      const start = Date.now();
-      (function check() {
-        if (rowElement.classList.contains(selectedClass)) return resolve(true);
-        if (Date.now() - start > timeout) return reject(new Error(`Таймаут ожидания выбора строки (класс ${selectedClass} не появился).`));
-        setTimeout(check, TUNING.POLLING_INTERVAL);
-      })();
-    });
-  }
-
   function waitForElement(doc, selector, timeout = 20000) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const start = Date.now();
       (function check() {
         const el = doc.querySelector(selector);
         if (el && el.offsetParent !== null) return resolve(el);
         if (Date.now() - start > timeout) {
-          console.warn("Элемент не найден или не видим в DOM:", selector);
-          allElementsFound = false;
-          resolve(null);
+          reject(new Error(`Элемент не найден или не видим в DOM: ${selector}`));
         }
         setTimeout(check, TUNING.POLLING_INTERVAL);
       })();
@@ -153,12 +131,11 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
   async function selectFromDropdown({ doc, iframeWindow, fieldSelector, value }) {
     const input = await waitForElement(doc, fieldSelector);
-    if (!input) return;
     const trigger = input.closest(".x-form-item-body")?.querySelector(".x-form-trigger");
     if (!trigger) throw new Error(`Триггер для выпадающего списка ${fieldSelector} не найден.`);
     dispatchMouseEvents(trigger, iframeWindow);
     const dropdownList = await waitForElement(doc, ".x-boundlist:not(.x-boundlist-hidden)", 5000);
-    await waitForElement(dropdownList, ".x-boundlist-item", 2000);
+    await waitForElement(doc, ".x-boundlist-item", 2000);
     const options = Array.from(dropdownList.querySelectorAll(".x-boundlist-item"));
     const targetOption = options.find(opt => opt.textContent.trim() === value);
     if (!targetOption) { doc.body.click(); throw new Error(`Опция "${value}" не найдена в выпадающем списке.`); }
@@ -168,7 +145,6 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
   async function selectFromReferenceField({ doc, iframeWindow, fieldSelector, column, value }) {
     const input = await waitForElement(doc, fieldSelector);
-    if (!input) return;
 
     input.focus();
     dispatchMouseEvents(input, iframeWindow);
@@ -221,6 +197,9 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
     console.log("[pageInjector] Выполняем двойной клик (dblclick) для выбора и закрытия...");
     checker.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, view: iframeWindow }));
+    // Даем сайту микро-паузу, чтобы он успел обработать dblclick и закрыть окно
+    // до того, как мы начнем ждать его закрытия. Это предотвращает "гонку состояний".
+    await new Promise(resolve => setTimeout(resolve, 1000));
     await waitForReferenceWindow(doc, false, 5000);
     console.log("[pageInjector] Окно справочника успешно закрыто.");
   }
@@ -251,29 +230,29 @@ export async function injectionTargetFunction(enrichedDataForForm) {
   let executionError = null;
   try {
     const fillTasks = [
+      { type: 'plain', name: 'ReferralHospitalizationNumberTicket' },
+      { type: 'date', name: 'ReferralHospitalizationDateTicket' },
+      { type: 'plain', name: 'Enp' },
+      { type: 'date', name: 'DateBirth' },
+      { type: 'dropdown', name: 'Gender' },
+      { type: 'date', name: 'TreatmentDateStart' },
+      { type: 'plain', name: 'CardNumber' },
+      { type: 'date', name: 'TreatmentDateEnd' },
       { type: 'ref', name: 'ReferralHospitalizationMedIndications', column: 'Код' },
+      { type: 'ref', name: 'ReferralHospitalizationSendingDepartment', column: 'Реестровый номер' },
       { type: 'ref', name: 'HospitalizationInfoAddressDepartment', column: 'Адрес местонахождения'},
       { type: 'ref', name: 'VidMpV008', column: 'Код' },
       { type: 'ref', name: 'HospitalizationInfoV006', column: 'Код' },
       { type: 'ref', name: 'HospitalizationInfoV014', column: 'Код' },
-      { type: 'ref', name: 'HospitalizationInfoSubdivision', column: 'Краткое наименование' },
       { type: 'ref', name: 'HospitalizationInfoSpecializedMedicalProfile', column: 'Код' },
+      { type: 'ref', name: 'HospitalizationInfoSubdivision', column: 'Краткое наименование' },
+      { type: 'plain', name: 'HospitalizationInfoNameDepartment' },
+      { type: 'plain', name: 'HospitalizationInfoOfficeCode' },
       { type: 'ref', name: 'HospitalizationInfoV020', column: 'Код' },
       { type: 'ref', name: 'HospitalizationInfoC_ZABV027', column: 'Код' },
       { type: 'ref', name: 'HospitalizationInfoDiagnosisMainDisease', column: 'Код МКБ' },
       { type: 'ref', name: 'ResultV009', column: 'Код' },
       { type: 'ref', name: 'IshodV012', column: 'Код' },
-      { type: 'ref', name: 'ReferralHospitalizationSendingDepartment', column: 'Реестровый номер' },
-      { type: 'date', name: 'ReferralHospitalizationDateTicket' },
-      { type: 'date', name: 'DateBirth' },
-      { type: 'date', name: 'TreatmentDateStart' },
-      { type: 'date', name: 'TreatmentDateEnd' },
-      { type: 'dropdown', name: 'Gender' },
-      { type: 'plain', name: 'ReferralHospitalizationNumberTicket' },
-      { type: 'plain', name: 'Enp' },
-      { type: 'plain', name: 'HospitalizationInfoNameDepartment' },
-      { type: 'plain', name: 'HospitalizationInfoOfficeCode' },
-      { type: 'plain', name: 'CardNumber' },
     ];
 
     for (const task of fillTasks) {
@@ -282,10 +261,9 @@ export async function injectionTargetFunction(enrichedDataForForm) {
       if (!value) continue;
 
       const maxRetries = 3;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      for (let taskAttempt = 1; taskAttempt <= maxRetries; taskAttempt++) {
         try {
-          console.log(`[pageInjector] Попытка ${attempt}/${maxRetries} для поля: ${task.name}`);
-
+          console.log(`[pageInjector] Попытка ${taskAttempt}/${maxRetries} для поля: ${task.name}`);
           switch (task.type) {
             case 'ref':
               await selectFromReferenceField({ doc, iframeWindow: iframe.contentWindow, fieldSelector: selector, column: task.column, value });
@@ -300,13 +278,11 @@ export async function injectionTargetFunction(enrichedDataForForm) {
               fillPlainInput(doc, selector, value);
               break;
           }
-
           console.log(`[pageInjector] Поле ${task.name} успешно заполнено.`);
           break;
-
         } catch (error) {
-          console.warn(`[pageInjector] Ошибка на попытке ${attempt} для поля ${task.name}:`, error.message);
-          if (attempt === maxRetries) {
+          console.warn(`[pageInjector] Ошибка на попытке ${taskAttempt} для поля ${task.name}:`, error.message);
+          if (taskAttempt === maxRetries) {
             throw new Error(`Не удалось заполнить поле ${task.name} после ${maxRetries} попыток. Последняя ошибка: ${error.message}`);
           }
           await new Promise(resolve => setTimeout(resolve, TUNING.TASK_RETRY_DELAY));
@@ -315,18 +291,14 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
       if (task.name === 'HospitalizationInfoDiagnosisMainDisease') {
           console.log('[pageInjector] Диагноз МКБ заполнен. Переключаемся на вкладку "Сведения о случае..."');
-
           const tabs = Array.from(doc.querySelectorAll('span.x-tab-inner'));
           const targetTab = tabs.find(tab => tab.textContent.trim() === 'Сведения о случае оказанной медицинской помощи');
-
           if (targetTab) {
             dispatchMouseEvents(targetTab, iframe.contentWindow);
             await new Promise(resolve => setTimeout(resolve, TUNING.TAB_SWITCH_DELAY));
-
             console.log('[pageInjector] Ожидаем, пока поле "Результат" станет активным...');
             await waitForElementEnabled(doc, "input[name='ResultV009']", 15000);
             console.log('[pageInjector] Поле "Результат" активно. Продолжаем.');
-
           } else {
             console.warn('[pageInjector] Не удалось найти вкладку "Сведения о случае оказанной медицинской помощи" для переключения.');
           }
@@ -339,15 +311,17 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     hideOverlay(doc);
 
     if (executionError) {
+      const errorMessage = `Автоматическое заполнение формы не удалось.\n\nПричина: ${executionError.message}\n\nПожалуйста, перезагрузите страницу (Ctrl+R или Cmd+R) и попробуйте еще раз.`;
+      alert(errorMessage);
+
       chrome.runtime.sendMessage({ action: "injectionError", error: `Произошла ошибка: ${executionError.message || String(executionError)}` });
       chrome.runtime.sendMessage({ action: "formFillError", error: executionError.message || String(executionError) });
-    } else {
 
+    } else {
       try {
         console.log('[pageInjector] Заполнение формы завершено. Возвращаемся на вкладку "Сведения о госпитализации".');
         const finalTabs = Array.from(doc.querySelectorAll('span.x-tab-inner'));
         const finalTargetTab = finalTabs.find(tab => tab.textContent.trim() === 'Сведения о госпитализации');
-
         if (finalTargetTab) {
           dispatchMouseEvents(finalTargetTab, iframe.contentWindow);
         } else {
@@ -359,7 +333,6 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
       const patientName = dataMapToInsert.patientFIO || dataMapToInsert["input[name='CardNumber']"] || "пациента";
       chrome.runtime.sendMessage({ action: "formFillComplete", patientName: patientName });
-
       const { medical_service_data: operations, additional_diagnosis_data: diagnoses, discharge_summary: discharge } = dataMapToInsert;
       if (operations?.length || diagnoses?.length || !allElementsFound || discharge) {
         let title = "Найдены дополнительные данные:";
