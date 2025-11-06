@@ -5,11 +5,34 @@ export async function injectionTargetFunction(enrichedDataForForm) {
   let allElementsFound = true;
 
   const TUNING = {
+    // Общий "запас времени" (в мс) на одну полную операцию со справочником (открытие, загрузка, фильтрация).
+    // Это не пауза, а максимальное время ожидания, чтобы скрипт не завис навсегда, если сайт "тормозит".
     REFERENCE_FIELD_TIMEOUT: 50000,
+
+    // Интервал опроса (в мс) для всех функций ожидания (`waitFor...`).
+    // Определяет, как часто скрипт проверяет, выполнилось ли условие (например, "исчезла ли маска загрузки?").
+    // Меньше значение = быстрее реакция, но чуть выше нагрузка на процессор.
     POLLING_INTERVAL: 150,
+
+    // Фиксированная пауза (в мс) после переключения вкладки.
+    // Дает интерфейсу время на перерисовку и инициализацию элементов на новой вкладке перед тем, как скрипт продолжит работу.
     TAB_SWITCH_DELAY: 250,
+
+    // Фиксированная пауза (в мс) после отправки значения в фильтр справочника.
+    // Позволяет сайту гарантированно обработать ввод и инициировать запрос на сервер для фильтрации данных.
     FILTER_REACTION_DELAY: 250,
+
+    // Пауза (в мс) между глобальными повторными попытками для одного поля (если вся операция, например, `selectFromReferenceField`, провалилась).
+    // Дает сайту время на восстановление после возможного внутреннего сбоя.
     TASK_RETRY_DELAY: 1000,
+
+    // Максимальное количество глобальных попыток для заполнения одного поля.
+    // Если поле не удалось заполнить с 3-х раз, скрипт остановится с ошибкой.
+    TASK_MAX_RETRIES: 3,
+
+    // Максимальное количество попыток найти нужную запись *внутри* уже открытого справочника.
+    // Помогает, если сама фильтрация на сайте срабатывает нестабильно или не с первого раза.
+    GRID_SEARCH_MAX_RETRIES: 5,
   };
 
   const FIELD_NAMES_MAP = {
@@ -177,7 +200,7 @@ export async function injectionTargetFunction(enrichedDataForForm) {
     if (!filterInput) throw new Error(`Поле для фильтрации в колонке "${column}" не найдено.`);
 
     let firstRow = null;
-    const maxRetries = 5;
+    const maxRetries = TUNING.GRID_SEARCH_MAX_RETRIES;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`[pageInjector] Попытка ${attempt}/${maxRetries} найти "${value}" в колонке "${column}"`);
@@ -276,7 +299,7 @@ export async function injectionTargetFunction(enrichedDataForForm) {
       const value = dataMapToInsert[selector];
       if (!value) continue;
 
-      const maxRetries = 3;
+      const maxRetries = TUNING.TASK_MAX_RETRIES;
       for (let taskAttempt = 1; taskAttempt <= maxRetries; taskAttempt++) {
         try {
           console.log(`[pageInjector] Попытка ${taskAttempt}/${maxRetries} для поля: ${task.name}`);
