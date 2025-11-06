@@ -11,6 +11,7 @@ settings = get_settings()
 tags_metadata = []
 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_gateway_client(app)
