@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Tuple
 
@@ -12,6 +13,36 @@ from app.service.extension.request import fetch_referred_org_by_id
 from app.service.gateway.gateway_service import GatewayService
 
 settings = get_settings()
+
+
+# Словарь для хранения кодов профилей.
+MEDICAL_CARE_PROFILE_MAPPER = {
+    "Оториноларингология": '20',
+    "Сердечно-сосудистая хирургия": "25",
+    "Колопроктология": "14"
+}
+
+# Список правил коррекции.
+PROFILE_CORRECTION_RULES = [
+    (re.compile(r"^J34\.\d$"), MEDICAL_CARE_PROFILE_MAPPER["Оториноларингология"]),
+    (re.compile(r"^I83\.\d$"), MEDICAL_CARE_PROFILE_MAPPER["Сердечно-сосудистая хирургия"]),
+    (re.compile(r"^(K6[0-4]\.\d|D12\.\d|L05\.\d)$"), MEDICAL_CARE_PROFILE_MAPPER["Колопроктология"]),
+    # Добавлять новые правила СЮДА.
+]
+
+
+def correct_medical_profile(diag_code: str, current_profile: str) -> str:
+    """
+    Уточняет профиль медицинской помощи на основе диагноза.
+
+    Если диагноз соответствует одному из заданных правил, возвращает
+    новый код профиля. В противном случае возвращает текущий (неизмененный) профиль.
+
+    """
+    for pattern, new_profile in PROFILE_CORRECTION_RULES:
+        if pattern.match(diag_code):
+            return new_profile
+    return current_profile
 
 
 async def safe_gather(*tasks: Awaitable[Any]) -> list[Any | None]:
@@ -43,7 +74,7 @@ async def safe_gather(*tasks: Awaitable[Any]) -> list[Any | None]:
 
 
 async def get_referred_organization(
-    data: dict, gateway_service: GatewayService
+        data: dict, gateway_service: GatewayService
 ) -> str | None:
     """
     Определяет организацию направившую пациента на госпитализацию, если она указана
@@ -123,7 +154,7 @@ async def get_department_code(department_name: str) -> str | None:
 
 
 async def get_bed_profile_code(
-    movement_data: dict, department_name: str
+        movement_data: dict, department_name: str
 ) -> Tuple[str | None, str | None]:
     """
     Возвращает кортеж (код профиля койки, итоговое название профиля койки).
@@ -166,7 +197,7 @@ async def get_bed_profile_code(
 
 
 async def get_medical_care_profile(
-    data: dict, corrected_bed_profile_name: str | None = None
+        data: dict, corrected_bed_profile_name: str | None = None
 ) -> str | None:
     """
     Определяет код профиля оказания медицинской помощи.

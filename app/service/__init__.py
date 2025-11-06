@@ -10,7 +10,7 @@ from .extension.utils import (get_bed_profile_code, get_department_code,
                               get_medical_care_condition,
                               get_medical_care_form, get_medical_care_profile,
                               get_outcome_code, get_referred_organization,
-                              safe_gather)
+                              safe_gather, correct_medical_profile)
 from .gateway.gateway_service import GatewayService
 
 __all__ = [
@@ -33,4 +33,5 @@ __all__ = [
     "get_medical_care_form",
     "get_outcome_code",
     "get_disease_type_code",
+    "correct_medical_profile"
 ]
