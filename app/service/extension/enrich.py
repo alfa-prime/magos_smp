@@ -116,6 +116,11 @@ async def enrich_data(
     if re.compile(r"^J34\.\d$").match(diag_code):
         medical_care_profile = '20'
 
+    # меняем профиль медицинской помощи на 'Сердечно-сосудистая хирургия' код: 25
+    # при диагнозах J34.x
+    if re.compile(r"^I83\.\d$").match(diag_code):
+        medical_care_profile = '25'
+
     # меняем профиль медицинской помощи на 'Колопроктология' код: 14
     # при диагнозах K60.x - K64.x && D12.x && L05.x
     pattern = re.compile(r"^(K6[0-4]\.\d|D12\.\d|L05\.\d)$")

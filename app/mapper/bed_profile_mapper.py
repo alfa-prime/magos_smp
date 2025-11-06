@@ -32,7 +32,7 @@ bed_profile_correction_rules = {
     ],
     "Хирургическое отделение №1": [
         {
-            "pattern": re.compile(r"^I83.9$"),
+            "pattern": re.compile(r"^I83\.\d$"),
             "replacement": "сосудистой хирургии"
         },
         {
@@ -66,7 +66,7 @@ bed_profile_correction_rules = {
     ],
     "Хирургическое отделение №2": [
         {
-            "pattern": re.compile(r"^I83.9$"),
+            "pattern": re.compile(r"^I83\.\d$"),
             "replacement": "сосудистой хирургии"
         },
         {
@@ -100,7 +100,7 @@ bed_profile_correction_rules = {
     ],
     "Дневной стационар": [
         {
-            "pattern": re.compile(r"^I83.9$"),
+            "pattern": re.compile(r"^I83\.\d$"),
             "replacement": "сосудистой хирургии"
         },
         {
