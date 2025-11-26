@@ -356,7 +356,7 @@ export async function injectionTargetFunction(enrichedDataForForm) {
 
       // "Переводим" имя поля, если оно есть в словаре
       const humanFieldName = FIELD_NAMES_MAP[fieldName] || fieldName;
-      const problemDescription = humanFieldName ? `Проблема с полем: "${humanFieldName}"` : `Причина: ${executionError.message}`;
+      const problemDescription = humanFieldName ? `Не удалось заполнить поле: "${humanFieldName}"` : `Причина: ${executionError.message}`;
       const errorMessage = `Автоматическое заполнение формы не удалось.\n\n${problemDescription}\n\nПожалуйста, перезагрузите страницу (Ctrl+Shift+R)\nи попробуйте еще раз.`;
       alert(errorMessage);
 
