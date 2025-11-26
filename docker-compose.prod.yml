@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile.prod
     container_name: ${PROD_CONTAINER_NAME}
     restart: always
+    environment:
+      - TZ=Europe/Moscow
     env_file:
       - .env
     ports:
