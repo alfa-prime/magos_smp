@@ -7,54 +7,71 @@ const TITLE_DISABLED = 'ЕВМИАС -> ОМС (неактивно)';
 const REASON_DISABLED = 'Перейдите на страницу ввода данных в ГИС ОМС для активации.';
 
 async function setActionState(tabId, enabled) {
-    if (enabled) {
-        await chrome.action.enable(tabId);
-        await chrome.action.setTitle({ tabId: tabId, title: TITLE_ENABLED });
-    } else {
-        await chrome.action.disable(tabId);
-        await chrome.action.setTitle({ tabId: tabId, title: `${TITLE_DISABLED}\n${REASON_DISABLED}` });
+    try {
+        if (enabled) {
+            await chrome.action.enable(tabId);
+            await chrome.action.setTitle({ tabId: tabId, title: TITLE_ENABLED });
+        } else {
+            await chrome.action.disable(tabId);
+            await chrome.action.setTitle({ tabId: tabId, title: `${TITLE_DISABLED}\n${REASON_DISABLED}` });
+        }
+    } catch (e) {
+        // Игнорируем ошибки при закрытии вкладки
     }
 }
 
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'updateIcon' && sender.tab) {
-        await setActionState(sender.tab.id, message.found);
+        setActionState(sender.tab.id, message.found);
         return;
     }
 
     if (message.action === 'startFormFill') {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        (async () => {
+            try {
+                // 1. Находим вкладку
+                let targetTabId = message.tabId;
+                if (!targetTabId) {
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    targetTabId = tab?.id;
+                }
 
-        if (!tab || !tab.id) {
-            console.error('[Background] Не удалось найти активную вкладку для инъекции скрипта.');
-            return;
-        }
+                if (!targetTabId) {
+                    console.error('[Background] Не удалось найти вкладку для инъекции.');
+                    sendResponse({ success: false, error: 'Вкладка не найдена' });
+                    return;
+                }
 
-        console.log(`[Background] Получены данные для автозаполнения на вкладке ${tab.id}. Запускаем инъекцию...`);
+                console.log(`[Background] Данные получены. Запускаем инъекцию в таб ${targetTabId}...`);
 
-        try {
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: injectionTargetFunction,
-                args: [message.data]
-            });
-            console.log(`[Background] Инъекция скрипта на вкладку ${tab.id} успешно запущена.`);
-        } catch (error) {
-            console.error(`[Background] Ошибка при инъекции скрипта на вкладку ${tab.id}:`, error);
-        }
-        return;
+                // 2. ЗАПУСКАЕМ СКРИПТ БЕЗ AWAIT
+                // Мы не ждем, пока он выполнится (это долго). Мы просто кидаем его в исполнение.
+                chrome.scripting.executeScript({
+                    target: { tabId: targetTabId },
+                    func: injectionTargetFunction,
+                    args: [message.data]
+                }).catch(err => {
+                    // Эта ошибка возникнет, если скрипт вообще не удалось запустить (например, нет прав)
+                    // Но popup к этому моменту уже закроется.
+                    console.error(`[Background] Ошибка запуска скрипта (в фоне):`, err);
+                });
+                
+                // 3. Сразу отвечаем Popup'у, чтобы он закрылся
+                console.log(`[Background] Команда отправлена, закрываем Popup.`);
+                sendResponse({ success: true });
+
+            } catch (error) {
+                console.error(`[Background] Ошибка подготовки инъекции:`, error);
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
+
+        return true; // Держим канал для асинхронного sendResponse
     }
 
     if (message.action === 'showFinalResultInPage') {
         if (sender.tab && sender.tab.id) {
-            try {
-                await chrome.tabs.sendMessage(sender.tab.id, message);
-                console.log(`[Background] Сообщение 'showFinalResultInPage' переслано на вкладку ${sender.tab.id}`);
-            } catch (error) {
-                console.error(`[Background] Ошибка пересылки сообщения на вкладку ${sender.tab.id}:`, error);
-            }
-        } else {
-            console.error('[Background] Сообщение пришло не от вкладки, некуда пересылать.');
+            chrome.tabs.sendMessage(sender.tab.id, message).catch(err => console.error(err));
         }
         return;
     }
@@ -64,28 +81,22 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return;
     }
 
-    if (message.action === 'formFillError' || message.action === 'formFillComplete') {
-        if (isOffscreenApiSupported && await chrome.offscreen.hasDocument()) {
-            await sendActionToOffscreen('stop_audio');
-            await chrome.offscreen.closeDocument();
-            console.log('[Background] Воспроизведение тишины остановлено, документ закрыт.');
+    if (message.action === 'formFillComplete') {
+        if (isOffscreenApiSupported) {
+             chrome.offscreen.hasDocument().then(has => {
+                 if(has) chrome.offscreen.closeDocument();
+             });
         }
-
-        if (message.action === 'formFillError') {
-            console.error(`[Background] Заполнение формы завершилось с ошибкой: ${message.error}`);
-        } else { // formFillComplete
-            const patientInfo = message.patientName ? `для пациента ${message.patientName}` : '';
-            console.log(`[Background] Заполнение формы успешно завершено ${patientInfo}.`);
-        }
+        const patientInfo = message.patientName ? `для пациента ${message.patientName}` : '';
+        console.log(`[Background] Заполнение формы завершено ${patientInfo}.`);
         return;
     }
-
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
         if (!tab.url.startsWith("https://gisoms.ffoms.gov.ru/")) {
-            await setActionState(tabId, false);
+            setActionState(tabId, false);
         }
     }
 });

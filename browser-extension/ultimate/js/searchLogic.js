@@ -50,12 +50,13 @@ export async function searchPatient() {
         `${item.Person_Surname || ""} ${item.Person_Firname || ""} ${item.Person_Secname || ""} (${item.Person_Birthday || "N/A"})`.trim();
       const card = item.EvnPS_NumCard || "N/A";
       const hospDate = item.EvnPS_setDate || "N/A";
+
+      // Название подразделения из бэкенда
       const divisionName = item._division_name || "Подразделение не указано";
 
       const li = document.createElement("li");
       li.innerHTML = `
                 <div><strong>${person}</strong></div>
-                <div><br></div>
                 <div>Подразделение: ${divisionName}</div>
                 <div>Номер карты: ${card}</div>
                 <div>Дата госпитализации: ${hospDate}</div>
@@ -74,17 +75,36 @@ export async function searchPatient() {
           const enrichmentPayload = { started_data: item };
           const enrichedDataForForm = await api.fetchEnrichedDataForPatient(enrichmentPayload);
 
-          // 1. Отправляем сообщение с данными фоновому скрипту для выполнения в фоне.
-          chrome.runtime.sendMessage({
-              action: 'startFormFill',
-              data: enrichedDataForForm
+          // 1. Получаем ID активной вкладки
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+          if (!tab?.id) {
+              throw new Error("Не удалось определить активную вкладку для отправки сообщения.");
+          }
+
+          // 2. Отправляем сообщение в background и ЖДЕМ подтверждения
+          await new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage({
+                  action: 'startFormFill',
+                  tabId: tab.id,
+                  data: enrichedDataForForm
+              }, (response) => {
+                  if (chrome.runtime.lastError) {
+                      return reject(new Error(chrome.runtime.lastError.message));
+                  }
+                  if (response && response.success) {
+                      resolve();
+                  } else {
+                      reject(new Error(response?.error || "Ошибка фонового скрипта"));
+                  }
+              });
           });
 
-          // 2. Немедленно закрываем popup. Фоновый скрипт сделает остальную работу.
+          // 3. Только после успешной передачи закрываем окно
           window.close();
 
         } catch (err) {
-          console.error("[SearchLogic] Ошибка при обогащении:", err);
+          console.error("[SearchLogic] Ошибка:", err);
           ui.showUserError(err.message);
           ui.setSelectButtonState(selectButton, true, "Выбрать");
           ui.hideLoading();

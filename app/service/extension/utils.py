@@ -124,6 +124,9 @@ async def get_department_name(data: dict) -> str | None:
     if name.startswith("ДС") or "дневного стационара" in name:
         return "Дневной стационар"
 
+    if name == "ЭКО-ВРТ ММЦ":
+        return "Отделение ВРТ"
+
     name = name.replace(" стационар ММЦ", "").replace(" ММЦ", "")
 
     replacements = {
@@ -271,7 +274,7 @@ async def get_medical_care_condition(lpu_section_name: str) -> str:
         f"Определяем условия оказания медицинской помощи. Отделение: {lpu_section_name}"
     )
     return (
-        day_hospital_care if lpu_section_name == "Дневной стационар" or lpu_section_name == "ЭКО-ВРТ" else inpatient_care
+        day_hospital_care if lpu_section_name == "Дневной стационар" or lpu_section_name == "Отделение ВРТ" else inpatient_care
     )
 
 
