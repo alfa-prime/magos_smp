@@ -4,7 +4,12 @@ from app.core import get_settings
 from app.core.logger_setup import logger
 from app.model import EnrichmentRequestData
 from app.service.gateway.gateway_service import GatewayService
-from app.mapper import division_addresses, DEFAULT_DIVISION_ADDRESS
+from app.mapper import (
+    division_addresses,
+    DEFAULT_DIVISION_ADDRESS,
+    division_structure_names,
+    DEFAULT_DIVISION_STRUCTURE_NAME,
+)
 from app.service.extension.request import (
     fetch_and_process_additional_diagnosis, fetch_disease_data,
     fetch_movement_data, fetch_operations_data,
@@ -110,6 +115,8 @@ async def enrich_data(
     division_cid = started_data.get("_division_internal_cid")
     division_address = division_addresses.get(str(division_cid), DEFAULT_DIVISION_ADDRESS)
     logger.debug(f"ID подразделения: {division_cid}, Выбран адрес: {division_address}")
+    division_structure_name = division_structure_names.get(str(division_cid), DEFAULT_DIVISION_STRUCTURE_NAME)
+    logger.debug(f"ID подразделения: {division_cid}, Выбрано структурное подразделение: {division_structure_name}")
 
     enriched_data = {
         "input[name='ReferralHospitalizationNumberTicket']": "б/н",
@@ -124,7 +131,7 @@ async def enrich_data(
         "input[name='HospitalizationInfoV006']": medical_care_conditions,
         "input[name='HospitalizationInfoV014']": medical_care_form,
         "input[name='HospitalizationInfoSpecializedMedicalProfile']": medical_care_profile,
-        "input[name='HospitalizationInfoSubdivision']": "Стационар",
+        "input[name='HospitalizationInfoSubdivision']": division_structure_name,
         "input[name='HospitalizationInfoNameDepartment']": department_name,
         "input[name='HospitalizationInfoOfficeCode']": department_code,
         "input[name='HospitalizationInfoV020']": bed_profile_code,

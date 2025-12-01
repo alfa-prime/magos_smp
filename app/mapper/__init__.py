@@ -9,7 +9,9 @@ from .division_info import (
     division_addresses,
     DEFAULT_DIVISION_ADDRESS,
     division_names,
-    DEFAULT_DIVISION_NAME
+    DEFAULT_DIVISION_NAME,
+    division_structure_names,
+    DEFAULT_DIVISION_STRUCTURE_NAME
 )
 
 __all__ = [
@@ -23,5 +25,7 @@ __all__ = [
     "division_addresses",
     "DEFAULT_DIVISION_ADDRESS",
     "division_names",
-    "DEFAULT_DIVISION_NAME"
+    "DEFAULT_DIVISION_NAME",
+    "division_structure_names",
+    "DEFAULT_DIVISION_STRUCTURE_NAME"
 ]

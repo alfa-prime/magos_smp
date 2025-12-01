@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     KSG_YEAR: str
     SEARCH_PERIOD_START_DATE: str
     SEARCH_PAY_TYPE_ID: str
-    SEARCH_LPU_BUILDING_CIDS: str
+    SEARCH_LPU_DIVISION_CIDS: str
+
+    EKO_DIVISION_ID: str
+    EKO_DEPARTMENT_ID: str
 
     MEDICAL_CARE_TYPE_CODE: str
 
@@ -38,9 +41,9 @@ class Settings(BaseSettings):
 
     @property
     def lpu_building_cids_list(self) -> list[str]:
-        if not self.SEARCH_LPU_BUILDING_CIDS:
+        if not self.SEARCH_LPU_DIVISION_CIDS:
             return []
-        return [cid.strip() for cid in self.SEARCH_LPU_BUILDING_CIDS.split(',') if cid.strip()]
+        return [cid.strip() for cid in self.SEARCH_LPU_DIVISION_CIDS.split(',') if cid.strip()]
 
 
 @lru_cache

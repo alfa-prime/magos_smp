@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any
 
@@ -20,15 +21,21 @@ async def _fetch_data_for_building(
     """
     Вспомогательная функция для запроса данных по конкретному LpuBuilding_cid.
     """
+    request_data = {
+        "SearchFormType": "EvnPS",
+        "Person_Surname": patient.last_name,
+        "PayType_id": settings.SEARCH_PAY_TYPE_ID,
+        "EvnSection_disDate_Range": search_date_range,
+        "LpuBuilding_cid": cid,
+    }
+
+    # при поиске ЭКО  помимо id подразделения, добавляем id отделения, для того что бы не искать по всей поликлинике.
+    if cid == settings.EKO_DIVISION_ID:
+        request_data["LpuSection_cid"] = settings.EKO_DEPARTMENT_ID
+
     payload_dict = {
         "params": {"c": "Search", "m": "searchData"},
-        "data": {
-            "SearchFormType": "EvnPS",
-            "Person_Surname": patient.last_name,
-            "PayType_id": settings.SEARCH_PAY_TYPE_ID,
-            "LpuBuilding_cid": cid,
-            "EvnSection_disDate_Range": search_date_range,
-        },
+        "data": request_data,
     }
 
     response = await gateway_service.make_request(method="post", json=payload_dict)
