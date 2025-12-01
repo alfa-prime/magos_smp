@@ -5,6 +5,12 @@ from .disease_outcome_ids import disease_outcome_ids
 from .medical_care_profile import medical_care_profile
 from .medical_care_profile_mapper import medical_care_profile_correction_rules
 from .medical_orgs import medical_orgs
+from .division_info import (
+    division_addresses,
+    DEFAULT_DIVISION_ADDRESS,
+    division_names,
+    DEFAULT_DIVISION_NAME
+)
 
 __all__ = [
     "disease_outcome_ids",
@@ -14,4 +20,8 @@ __all__ = [
     "bed_profile_correction_rules",
     "medical_care_profile",
     "medical_care_profile_correction_rules",
+    "division_addresses",
+    "DEFAULT_DIVISION_ADDRESS",
+    "division_names",
+    "DEFAULT_DIVISION_NAME"
 ]

@@ -14,13 +14,12 @@ class Settings(BaseSettings):
 
     CORS_ALLOW_REGEX: str = r"^chrome-extension://[a-z]{32}$"
 
-    # === Параметры бизнес-логики приложения === (см. .env)
     MO_REGISTRY_NUMBER: str
     LPU_ID: str
     KSG_YEAR: str
     SEARCH_PERIOD_START_DATE: str
     SEARCH_PAY_TYPE_ID: str
-    SEARCH_LPU_BUILDING_CID: str
+    SEARCH_LPU_BUILDING_CIDS: str
 
     MEDICAL_CARE_TYPE_CODE: str
 
@@ -34,8 +33,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore",
+        extra="ignore"
     )
+
+    @property
+    def lpu_building_cids_list(self) -> list[str]:
+        if not self.SEARCH_LPU_BUILDING_CIDS:
+            return []
+        return [cid.strip() for cid in self.SEARCH_LPU_BUILDING_CIDS.split(',') if cid.strip()]
 
 
 @lru_cache

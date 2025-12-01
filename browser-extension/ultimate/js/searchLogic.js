@@ -50,11 +50,13 @@ export async function searchPatient() {
         `${item.Person_Surname || ""} ${item.Person_Firname || ""} ${item.Person_Secname || ""} (${item.Person_Birthday || "N/A"})`.trim();
       const card = item.EvnPS_NumCard || "N/A";
       const hospDate = item.EvnPS_setDate || "N/A";
+      const divisionName = item._division_name || "Подразделение не указано";
 
       const li = document.createElement("li");
       li.innerHTML = `
                 <div><strong>${person}</strong></div>
                 <div><br></div>
+                <div>Подразделение: ${divisionName}</div>
                 <div>Номер карты: ${card}</div>
                 <div>Дата госпитализации: ${hospDate}</div>
                 <div><br></div>

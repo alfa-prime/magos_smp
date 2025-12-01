@@ -121,7 +121,7 @@ async def get_department_name(data: dict) -> str | None:
     if not name:
         return None
 
-    if name.startswith("ДС"):
+    if name.startswith("ДС") or "дневного стационара" in name:
         return "Дневной стационар"
 
     name = name.replace(" стационар ММЦ", "").replace(" ММЦ", "")

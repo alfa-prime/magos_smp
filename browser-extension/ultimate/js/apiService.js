@@ -17,7 +17,6 @@ async function handleApiResponse(response, operationName = "API") {
             // Пытаемся получить более детальную ошибку из JSON тела, если оно есть
             const errorData = await response.json();
             if (errorData && errorData.detail) {
-                // Если detail - массив (как мы обсуждали ранее, что может вызвать [object Object])
                 if (Array.isArray(errorData.detail)) {
                      errorDetail = errorData.detail.map(d =>
                         (typeof d === 'object' && d !== null && d.message) ? d.message : JSON.stringify(d)

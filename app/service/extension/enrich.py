@@ -4,6 +4,7 @@ from app.core import get_settings
 from app.core.logger_setup import logger
 from app.model import EnrichmentRequestData
 from app.service.gateway.gateway_service import GatewayService
+from app.mapper import division_addresses, DEFAULT_DIVISION_ADDRESS
 from app.service.extension.request import (
     fetch_and_process_additional_diagnosis, fetch_disease_data,
     fetch_movement_data, fetch_operations_data,
@@ -106,6 +107,10 @@ async def enrich_data(
 
     disease_type_code = await get_disease_type_code(disease_data)
 
+    division_cid = started_data.get("_division_internal_cid")
+    division_address = division_addresses.get(str(division_cid), DEFAULT_DIVISION_ADDRESS)
+    logger.debug(f"ID подразделения: {division_cid}, Выбран адрес: {division_address}")
+
     enriched_data = {
         "input[name='ReferralHospitalizationNumberTicket']": "б/н",
         "input[name='ReferralHospitalizationDateTicket']": direction_date,
@@ -132,7 +137,7 @@ async def enrich_data(
         "additional_diagnosis_data": valid_additional_diagnosis,
         "medical_service_data": medical_service_data,
         "discharge_summary": pure_discharge_summary,
-        "input[name='HospitalizationInfoAddressDepartment']": "Павлика Морозова, д. 6",
+        "input[name='HospitalizationInfoAddressDepartment']": division_address,
     }
 
     return enriched_data
